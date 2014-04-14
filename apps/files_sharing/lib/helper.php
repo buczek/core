@@ -111,4 +111,34 @@ class Helper {
 		}
 		return true;
 	}
+
+	public static function getSharesFromItem($target) {
+		$owner = \OC\Files\Filesystem::getOwner($target);
+		\OC\Files\Filesystem::initMountPoints($owner);
+		$info = \OC\Files\Filesystem::getFileInfo($target);
+		$ownerView = new \OC\Files\View('/'.$owner.'/files');
+		if ( $owner != \OCP\User::getUser() ) {
+			$path = $ownerView->getPath($info['fileid']);
+		} else {
+			$path = $target;
+		}
+
+
+		$ids = array();
+		while ($path !== '' && $path !== '.' && $path !== '/') {
+			$info = $ownerView->getFileInfo($path);
+			$ids[] = $info['fileid'];
+			$path = dirname($path);
+		}
+
+		if (!empty($ids)) {
+			$idList = implode(',', $ids);
+			$statement = "SELECT `share_with`, `share_type`, `file_target` FROM `*PREFIX*share` WHERE `file_source` IN (" . $idList . ") AND `share_type` IN (0, 1, 2)";
+			$query = \OCP\DB::prepare($statement);
+			$result = $query->execute();
+			return $result->fetchAll();
+		}
+
+		return array();
+	}
 }
